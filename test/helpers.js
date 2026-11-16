@@ -7,16 +7,29 @@ import { Writable } from 'node:stream';
  *   /bytes/<n>    — отдаёт ровно n байт
  *   /status/<code> — отвечает указанным статусом
  *   /slow          — отправляет заголовки и зависает
+ *   /chunked/<n>   — n байт без Content-Length (Transfer-Encoding: chunked)
+ *   /empty         — 204 No Content
+ *   /delay/<ms>    — ждёт ms, затем отдаёт 1000 байт
+ *   /flaky         — чередует 200 и 500
+ *   /redirect      — 302 на /bytes/100
+ *   /loop          — бесконечный редирект на себя
+ *
+ * Сервер считает, сколько запросов обрабатывается одновременно (maxActive),
+ * чтобы тесты могли проверить строгую последовательность.
  */
 export async function startServer() {
   /** @type {string[]} */
   const seenUrls = [];
   /** @type {import('node:http').IncomingHttpHeaders[]} */
   const seenHeaders = [];
+  const stats = { active: 0, maxActive: 0, flaky: 0 };
 
   const server = createServer((req, res) => {
     seenUrls.push(req.url ?? '');
     seenHeaders.push(req.headers);
+    stats.active += 1;
+    stats.maxActive = Math.max(stats.maxActive, stats.active);
+    res.on('close', () => { stats.active -= 1; });
     const { pathname } = new URL(req.url ?? '/', 'http://localhost');
     const [, route, arg] = pathname.split('/');
 
@@ -44,6 +57,35 @@ export async function startServer() {
       res.write('x');
       return; // никогда не завершаем ответ
     }
+    if (route === 'chunked') {
+      res.writeHead(200); // без content-length Node включает chunked-кодирование
+      res.end(Buffer.alloc(Number(arg), 2));
+      return;
+    }
+    if (route === 'empty') {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+    if (route === 'delay') {
+      const timer = setTimeout(() => {
+        res.writeHead(200, { 'content-length': 1000 });
+        res.end(Buffer.alloc(1000));
+      }, Number(arg));
+      res.on('close', () => clearTimeout(timer));
+      return;
+    }
+    if (route === 'flaky') {
+      stats.flaky += 1;
+      res.writeHead(stats.flaky % 2 ? 200 : 500);
+      res.end(Buffer.alloc(500));
+      return;
+    }
+    if (route === 'loop') {
+      res.writeHead(302, { location: '/loop' });
+      res.end();
+      return;
+    }
     if (route === 'redirect') {
       res.writeHead(302, { location: '/bytes/100' });
       res.end();
@@ -60,6 +102,12 @@ export async function startServer() {
     url: (path) => `http://127.0.0.1:${port}${path}`,
     seenUrls,
     seenHeaders,
+    stats,
+    reset() {
+      seenUrls.length = 0;
+      seenHeaders.length = 0;
+      Object.assign(stats, { maxActive: 0, flaky: 0 });
+    },
     close: () =>
       new Promise((resolve) => {
         server.closeAllConnections();

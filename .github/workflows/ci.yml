@@ -23,5 +23,8 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: npm test
+      - name: Coverage (Node 24)
+        if: matrix.node == 24 && matrix.os == 'ubuntu-latest'
+        run: npm run test:coverage
       - name: Smoke test
         run: node bin/net-speed.js --help

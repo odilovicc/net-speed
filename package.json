@@ -15,7 +15,8 @@
   ],
   "scripts": {
     "start": "node bin/net-speed.js",
-    "test": "node --test"
+    "test": "node --test",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-exclude=test/** --test-coverage-lines=95 --test-coverage-branches=90"
   },
   "engines": {
     "node": ">=20.3"
