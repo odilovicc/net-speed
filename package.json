@@ -1,0 +1,30 @@
+{
+  "name": "net-speed",
+  "version": "1.0.0",
+  "description": "Консольная утилита для замера скорости скачивания по HTTP(S): N последовательных запросов, среднее время, объём и скорость.",
+  "type": "module",
+  "bin": {
+    "net-speed": "bin/net-speed.js"
+  },
+  "exports": {
+    ".": "./src/measure.js"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
+  "scripts": {
+    "start": "node bin/net-speed.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20.3"
+  },
+  "keywords": [
+    "speedtest",
+    "bandwidth",
+    "cli",
+    "http"
+  ],
+  "license": "MIT"
+}
