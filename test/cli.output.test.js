@@ -108,6 +108,7 @@ describe('run: вывод', () => {
     const { code, stdout } = await exec([server.url('/slow'), '-n', '5'], { signal: controller.signal });
     assert.equal(code, EXIT.INTERRUPTED);
     assert.match(stdout, /Прервано пользователем после 1 из 5 запросов/);
+    assert.doesNotMatch(stdout, /Первый запрос не удался/, 'Ctrl+C — не то же самое, что неверная ссылка');
   });
 
   it('прерывание после успешных запросов всё равно показывает итог', async () => {

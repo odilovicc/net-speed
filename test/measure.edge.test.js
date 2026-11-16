@@ -135,7 +135,12 @@ describe('runBenchmark: последовательность и отмена', (
   });
 
   it('передаёт таймаут в каждый запрос', async () => {
-    const results = await runBenchmark(server.url('/delay/2000'), { count: 2, timeoutMs: 50 });
+    const results = await runBenchmark(server.url('/delay/2000'), {
+      count: 2,
+      timeoutMs: 50,
+      stopOnFirstFailure: false,
+    });
+    assert.equal(results.length, 2);
     assert.ok(results.every((r) => !r.ok && /таймаут 50/.test(r.error ?? '')));
   });
 });

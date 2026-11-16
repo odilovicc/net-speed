@@ -94,11 +94,14 @@ export async function measureRequest(url, options = {}) {
  * @param {number} [options.timeoutMs]
  * @param {AbortSignal} [options.signal]
  * @param {boolean} [options.cacheBust=false]  Добавлять уникальный query-параметр к каждому запросу.
+ * @param {boolean} [options.stopOnFirstFailure=true]  Первый запрос — проверка адреса:
+ *   если он не удался (неверная ссылка, 404, DNS, таймаут), остальные не отправляются.
+ *   Ошибки последующих запросов замер не останавливают.
  * @param {(result: RequestResult) => void} [options.onResult]  Колбэк после каждого запроса.
  * @returns {Promise<RequestResult[]>}
  */
 export async function runBenchmark(url, options = {}) {
-  const { count = 10, timeoutMs, signal, cacheBust = false, onResult } = options;
+  const { count = 10, timeoutMs, signal, cacheBust = false, stopOnFirstFailure = true, onResult } = options;
   /** @type {RequestResult[]} */
   const results = [];
 
@@ -108,6 +111,7 @@ export async function runBenchmark(url, options = {}) {
     const result = await measureRequest(target, { index, timeoutMs, signal });
     results.push(result);
     onResult?.(result);
+    if (index === 1 && !result.ok && stopOnFirstFailure) break;
   }
 
   return results;

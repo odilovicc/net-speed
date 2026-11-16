@@ -90,12 +90,15 @@ export async function run(argv, io) {
   });
 
   const interrupted = Boolean(signal?.aborted);
+  // Меньше запросов, чем просили, без Ctrl+C — значит, первый запрос не прошёл
+  // и остальные не отправлялись.
+  const stoppedEarly = !interrupted && results.length < count;
   const summary = summarize(results);
 
   if (json) {
-    stdout.write(JSON.stringify(toJson(url, count, results, summary, interrupted), null, 2) + '\n');
+    stdout.write(JSON.stringify(toJson(url, count, results, summary, interrupted, stoppedEarly), null, 2) + '\n');
   } else {
-    stdout.write('\n' + formatSummary(summary, results, count, interrupted, paint));
+    stdout.write('\n' + formatSummary(summary, results, count, { interrupted, stoppedEarly }, paint));
   }
 
   if (interrupted) return EXIT.INTERRUPTED;
@@ -195,12 +198,19 @@ function formatResultRow(r, paint) {
  * @param {import('./stats.js').Summary | null} s
  * @param {import('./measure.js').RequestResult[]} results
  * @param {number} planned
- * @param {boolean} interrupted
+ * @param {{ interrupted: boolean, stoppedEarly: boolean }} flags
  * @param {ReturnType<typeof createPainter>} paint
  */
-function formatSummary(s, results, planned, interrupted, paint) {
+function formatSummary(s, results, planned, { interrupted, stoppedEarly }, paint) {
   const lines = [];
   if (interrupted) lines.push(paint.yellow(`Прервано пользователем после ${results.length} из ${planned} запросов.`));
+  if (stoppedEarly) {
+    const skipped = planned - results.length;
+    lines.push(
+      paint.red(`Первый запрос не удался — замер остановлен, не отправлено запросов: ${skipped}. Проверьте адрес.`),
+    );
+    return lines.join('\n') + '\n';
+  }
 
   if (!s) {
     lines.push(paint.red('Ни один запрос не завершился успешно — скорость посчитать нельзя.'));
@@ -235,11 +245,12 @@ function formatSummary(s, results, planned, interrupted, paint) {
   return lines.join('\n') + '\n';
 }
 
-function toJson(url, count, results, summary, interrupted) {
+function toJson(url, count, results, summary, interrupted, stoppedEarly) {
   return {
     url: url.href,
     requested: count,
     interrupted,
+    stoppedEarly,
     units: { bytes: 'B', time: 'ms', speed: 'Mbit/s (10^6 bit/s)' },
     summary: summary && {
       ...summary,

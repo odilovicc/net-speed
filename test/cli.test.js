@@ -69,8 +69,8 @@ describe('run', () => {
     assert.equal(typeof data.summary.mbps, 'number');
   });
 
-  it('возвращает код 1, если все запросы упали', async () => {
-    const { code, stdout } = await exec([server.url('/status/500'), '-n', '2']);
+  it('возвращает код 1, если единственный запрос упал', async () => {
+    const { code, stdout } = await exec([server.url('/status/500'), '-n', '1']);
     assert.equal(code, EXIT.FAILED);
     assert.match(stdout, /HTTP 500/);
     assert.match(stdout, /Ни один запрос не завершился успешно/);
